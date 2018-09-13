@@ -87,6 +87,112 @@ class MefRecord(AuthRecord):
     fetcher = mef_id_fetcher
     provider = MefProvider
 
+    @classmethod
+    def build_ref_string(cls, agency_pid, agency):
+        """Build ref string."""
+        from flask import current_app
+        with current_app.app_context():
+            url = current_app.config.get('JSONSCHEMAS_HOST')
+            ref_string = 'http://' + url + '/api/' + agency + '/' + agency_pid
+            return ref_string
+
+    @classmethod
+    def get_mef_by_agency_pid(cls, agency_pid, agency, with_deleted=False):
+        """Get mef record by agency pid value."""
+        key = agency + '.identifier_for_person'
+        search = MefSearch()
+        result = (
+            search.filter('term', **{key: agency_pid})
+            .source()
+            .execute()
+            .to_dict()
+        )
+        try:
+            mef_pid = result['hits']['hits'][0]['_source']['pid']
+            return cls.get_record_by_pid(mef_pid)
+        except IndexError:
+            return None
+
+    @classmethod
+    def get_mef_by_viaf_pid(cls, viaf_pid, with_deleted=False):
+        """Get mef record by agency pid value."""
+        search = MefSearch()
+        result = (
+            search.filter('term', viaf=viaf_pid).source().execute().to_dict()
+        )
+        try:
+            mef_pid = result['hits']['hits'][0]['_source']['pid']
+            return cls.get_record_by_pid(mef_pid)
+        except IndexError:
+            return None
+
+    @classmethod
+    def mef_sync(
+        cls,
+        agency=None,
+        agency_pid=None,
+        viaf_record=None,
+        action=None,
+        delete_pid=True,
+        dbcommit=False,
+        reindex=False,
+        **kwargs
+    ):
+        """Create, update or delete Mef record."""
+        if viaf_record:
+            viaf_pid = viaf_record['viaf_pid']
+            mef_record_from_viaf = cls.get_mef_by_viaf_pid(
+                viaf_pid=viaf_pid, with_deleted=False
+            )
+            mef_record_from_agency = cls.get_mef_by_agency_pid(
+                agency_pid=agency_pid, agency='viaf', with_deleted=False
+            )
+            ref_string = cls.build_ref_string(
+                agency=agency, agency_pid=agency_pid
+            )
+            if action == 'update':
+                if mef_record_from_viaf and mef_record_from_agency:
+                    mef_record_from_viaf.reindex()
+                elif mef_record_from_viaf and not mef_record_from_agency:
+                    mef_record_from_viaf[agency] = {'$ref': ref_string}
+                    mef_record_from_viaf.update(
+                        mef_record_from_viaf,
+                        dbcommit=dbcommit,
+                        reindex=reindex,
+                    )
+                elif not mef_record_from_viaf and not mef_record_from_agency:
+                    from flask import current_app
+                    with current_app.app_context():
+                        url = current_app.config.get('JSONSCHEMAS_HOST')
+                        data = {
+                            '$schema': 'http://' + url + '/schemas/'
+                            'authorities/mef-person-v0.0.1.json',
+                            agency: {'$ref': ref_string},
+                            'viaf': viaf_pid,
+                        }
+                        cls.create(
+                            data,
+                            id_=None,
+                            delete_pid=True,
+                            dbcommit=dbcommit,
+                            reindex=reindex,
+                        )
+                else:
+                    pass
+                    # exception to be throw
+            elif action == 'delete':
+                if mef_record_from_viaf:
+                    mef_record_from_viaf.pop(agency, None)
+                    mef_record_from_viaf.update(
+                        mef_record_from_viaf,
+                        dbcommit=dbcommit,
+                        reindex=reindex,
+                    )
+                # toto: delete mef record if last agency
+            else:
+                print('mef sync action not yet implemented:', action)
+                pass
+
 
 class GndRecord(AuthRecord):
     """Gnd Authority class."""
@@ -94,6 +200,8 @@ class GndRecord(AuthRecord):
     minter = gnd_id_minter
     fetcher = gnd_id_fetcher
     provider = GndProvider
+    agency = 'gnd'
+    agency_pid_type = 'gnd_pid'
 
 
 class ReroRecord(AuthRecord):
@@ -102,6 +210,8 @@ class ReroRecord(AuthRecord):
     minter = rero_id_minter
     fetcher = rero_id_fetcher
     provider = ReroProvider
+    agency = 'rero'
+    agency_pid_type = 'rero_auth_pid'
 
 
 class BnfRecord(AuthRecord):
@@ -110,6 +220,8 @@ class BnfRecord(AuthRecord):
     minter = bnf_id_minter
     fetcher = bnf_id_fetcher
     provider = BnfProvider
+    agency = 'bnf'
+    agency_pid_type = 'bnf_pid'
 
 
 class ViafRecord(AuthRecord):
@@ -118,3 +230,49 @@ class ViafRecord(AuthRecord):
     minter = viaf_id_minter
     fetcher = viaf_id_fetcher
     provider = ViafProvider
+
+    @classmethod
+    def get_viaf_by_agency_pid(cls, pid, pid_type, with_deleted=False):
+        """Get viaf record by agency pid value."""
+        search = ViafSearch()
+        result = (
+            search.filter('term', **{pid_type: pid})
+            .source()
+            .execute()
+            .to_dict()
+        )
+        try:
+            viaf_pid = result['hits']['hits'][0]['_source']['pid']
+            return cls.get_record_by_pid(viaf_pid)
+        except IndexError:
+            return None
+
+    @classmethod
+    def create_or_update(
+        cls,
+        data,
+        id_=None,
+        delete_pid=True,
+        dbcommit=False,
+        reindex=False,
+        vendor=None,
+        **kwargs
+    ):
+        """Create or update viaf record."""
+        pid = data['viaf_pid']
+        record = cls.get_record_by_pid(pid)
+        if record:
+            data['$schema'] = record['$schema']
+            data['pid'] = record['pid']
+            record.clear()
+            record.update(data, dbcommit=True, reindex=True)
+            return record, 'update'
+        else:
+            created_record = cls.create(
+                data,
+                id_=None,
+                delete_pid=True,
+                dbcommit=dbcommit,
+                reindex=reindex,
+            )
+            return created_record, 'create'

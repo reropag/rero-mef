@@ -15,22 +15,10 @@
         "pid": {
           "type": "keyword"
         },
-        "viaf_pid": {
+        "viaf": {
           "type": "keyword"
         },
-        "bnf_pid": {
-          "type": "keyword"
-        },
-        "gnd_pid": {
-          "type": "keyword"
-        },
-        "virtua_auth_pid": {
-          "type": "keyword"
-        },
-        "rero_auth_pid": {
-          "type": "keyword"
-        },
-        "_created": {
+       "_created": {
           "type": "date"
         },
         "_updated": {
