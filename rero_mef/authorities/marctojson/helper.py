@@ -148,6 +148,8 @@ def build_string_list_from_fields(record, tag, subfields, separator):
             if re.match('[' + subfields + ']', code):
                 subfield_list.append(data)
         string_from_field = separator.join(subfield_list)
+        string_from_field = string_from_field.replace('\x98', '')
+        string_from_field = string_from_field.replace('\x9C', '')
         filed_string_list.append(string_from_field)
     return filed_string_list
 

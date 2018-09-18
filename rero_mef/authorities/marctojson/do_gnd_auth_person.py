@@ -22,10 +22,7 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-"""Marctojsons transformer gnd."""
-
-# ---------------------------- Modules ----------------------------------------
-# import of standard modules
+"""Marctojsons transformer for Gnd records."""
 
 import re
 
@@ -34,7 +31,7 @@ from rero_mef.authorities.marctojson.helper import \
 
 
 class Transformation(object):
-    """Transformation unimarc to json for gnd autority person."""
+    """Transformation marc21 to json for gnd autority person."""
 
     def __init__(self, marc, logger=None, verbose=False, transform=True):
         """Constructor."""
@@ -76,7 +73,7 @@ class Transformation(object):
             self.json_dict['gender'] = gender
 
     def trans_gnd_language_of_person(self):
-        """Transformation language_of_person 101 $a."""
+        """Transformation language_of_person 377 $a."""
         if self.logger and self.verbose:
             self.logger.info('Call Function', 'trans_gnd_language_of_person')
         fields_377 = self.marc.get_fields('377')
@@ -159,13 +156,13 @@ class Transformation(object):
             self.json_dict['date_of_death'] = result['death_date']
 
     def trans_gnd_biographical_information(self):
-        """Transformation biographical_information 670 $abu."""
+        """Transformation biographical_information 678 $abu."""
         if self.logger and self.verbose:
             self.logger.info(
                 'Call Function',
                 'trans_gnd_biographical_information')
         biographical_information = []
-        for tag in [670]:
+        for tag in [678]:
             biographical_information += \
                 build_string_list_from_fields(self.marc, str(tag), 'abu', ', ')
         if biographical_information:
@@ -192,20 +189,21 @@ class Transformation(object):
                 'trans_gnd_variant_name_for_person')
         variant_name_for_person = \
             build_string_list_from_fields(self.marc, '400', 'a', ', ')
+
         if variant_name_for_person:
             self.json_dict['variant_name_for_person'] = variant_name_for_person
 
     def trans_gnd_authorized_access_point_representing_a_person(self):
         """Transformation authorized_access_point_representing_a_person.
 
-        100 $abcdgt
+        100 $abcd
         """
         if self.logger and self.verbose:
             self.logger.info(
                 'Call Function',
                 'trans_gnd_authorized_access_point_representing_a_person')
         authorized_access_point_representing_a_person = \
-            build_string_list_from_fields(self.marc, '100', 'abcdgt', ', ')
+            build_string_list_from_fields(self.marc, '100', 'abcd', ', ')
         if authorized_access_point_representing_a_person:
             self.json_dict['authorized_access_point_representing_a_person'] = \
                 authorized_access_point_representing_a_person[0]

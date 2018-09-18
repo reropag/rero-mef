@@ -24,21 +24,7 @@
 
 """Marctojsons transformer skeleton."""
 
-# ---------------------------- Modules ----------------------------------------
-# import of standard modules
 
-# third party modules
-
-# local modules
-
-__author__ = "Johnny Mariethoz <Johnny.Mariethoz@rero.ch>"
-__version__ = "0.0.1"
-__copyright__ = "Copyright (c) 2009-2011 Rero, Johnny Mariethoz"
-__license__ = "Internal Use Only"
-
-
-# ----------------------------------- Classes ---------------------------------
-# MrcIterator ----
 class Transformation(object):
     """Transformation skeleton for marc to json."""
 
